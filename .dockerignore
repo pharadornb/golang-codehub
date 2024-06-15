@@ -1,0 +1,16 @@
+bin/
+*.log
+*.md
+main/
+tmp/
+*.tmp
+.vscode/
+.idea/
+.git/
+.gitignore
+build/
+dist/
+vendor/
+node_modules/
+*.md
+*.txt
