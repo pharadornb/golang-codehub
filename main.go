@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -48,9 +50,145 @@ func main() {
 	// db.Migrator().DropColumn(&Book{}, "name")
 
 	// Migrate the schema
-	db.AutoMigrate(&Book{})
+	db.AutoMigrate(&Book{}, &User{})
 
-	fmt.Println("Database migration completed!")
+	//set up fiber app
+	app := fiber.New()
+
+	app.Get("/books", func(c *fiber.Ctx) error {
+		// return c.SendString("Hello, World!")
+		return c.JSON(getBooks(db))
+	})
+
+	app.Get("/book/:id", func(c *fiber.Ctx) error {
+		id, err := strconv.Atoi(c.Params("id"))
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+		book := getBook(db, uint(id))
+		return c.JSON(book)
+	})
+
+	app.Post("/book", func(c *fiber.Ctx) error {
+		newBook := new(Book)
+
+		if err := c.BodyParser(newBook); err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		createBook(db, newBook)
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+		return c.JSON(fiber.Map{
+			"status": "success",
+			"data":   newBook,
+		})
+	})
+
+	app.Put("/book/:id", func(c *fiber.Ctx) error {
+		id, err := strconv.Atoi(c.Params("id"))
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		book := new(Book)
+
+		if err := c.BodyParser(book); err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		book.ID = uint(id)
+
+		err = updateBook(db, book)
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "success",
+			"data":   book,
+		})
+	})
+
+	app.Delete("/book/:id", func(c *fiber.Ctx) error {
+		id, err := strconv.Atoi(c.Params("id"))
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		err = deleteBook(db, id)
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "success",
+		})
+	})
+
+	currentBook := seachBookAll(db, "The Alchemist")
+	fmt.Println(currentBook)
+
+	app.Post("/register", func(c *fiber.Ctx) error {
+		user := new(User)
+
+		if err := c.BodyParser(user); err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		err = createUser(db, user)
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "Register Success",
+		})
+	})
+
+	app.Post("/login", func(c *fiber.Ctx) error {
+		user := new(User)
+
+		if err := c.BodyParser(user); err != nil {
+			return c.SendStatus(fiber.StatusBadRequest)
+		}
+
+		token, err := loginUser(db, user)
+
+		if err != nil {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+
+		return c.JSON(fiber.Map{
+			"status": "Login Success",
+			"token":  token,
+		})
+
+		// err = createUser(db, user)
+
+		// if err != nil {
+		// 	return c.SendStatus(fiber.StatusBadRequest)
+		// }
+
+		// return c.JSON(fiber.Map{
+		// 	"status": "Register Success",
+		// })
+	})
+
+	// for _, book := range currentBook {
+	// 	fmt.Println(book)
+	// }
+
+	app.Listen(":8083")
+
+	// fmt.Println("Database migration completed!")
 
 	// newBook := &Book{
 	// 	Name:        "The Alchemist",
@@ -58,9 +196,19 @@ func main() {
 	// 	Publisher:   "HarperCollins",
 	// 	Description: "A novel by Brazilian author Paulo Coelho that was first published in 1988.",
 	// }
-
 	// createBook(db, newBook)
 
 	// currentBook := getBook(db, 1)
+	// fmt.Println(currentBook)
+
+	// currentBook.Name = "The Alchemist (Updated)"
+	// currentBook.Author = "Paulo Coelho (Updated)"
+	// updateBook(db, 1, currentBook)
+
+	// deleteBook(db, 1)
+
+	//not use gorm.model can't delete from field - soft delete
+
+	// currentBook := seachBook(db, "The Alchemist")
 	// fmt.Println(currentBook)
 }
