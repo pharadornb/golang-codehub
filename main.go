@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v4"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -20,6 +21,23 @@ const (
 	password = "mypassword" // as defined in docker-compose.yml
 	dbname   = "mydatabase" // as defined in docker-compose.yml
 )
+
+func authRequired(c *fiber.Ctx) error {
+	cookie := c.Cookies("jwt")
+	jwtSecretKey := "TestSecret"
+
+	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecretKey, nil
+	})
+
+	if err != nil {
+		return c.SendStatus(fiber.StatusUnauthorized)
+	}
+
+	fmt.Println(token)
+
+	return c.Next()
+}
 
 func main() {
 	// Configure your PostgreSQL database details here
@@ -54,6 +72,7 @@ func main() {
 
 	//set up fiber app
 	app := fiber.New()
+	app.Use("/books", authRequired)
 
 	app.Get("/books", func(c *fiber.Ctx) error {
 		// return c.SendString("Hello, World!")
@@ -166,9 +185,16 @@ func main() {
 			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 
+		c.Cookie(&fiber.Cookie{
+			Name:     "jwt",
+			Value:    token,
+			Expires:  time.Now().Add(time.Hour * 72),
+			HTTPOnly: true,
+		})
+
 		return c.JSON(fiber.Map{
 			"status": "Login Success",
-			"token":  token,
+			// "token":  token,
 		})
 
 		// err = createUser(db, user)

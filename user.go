@@ -61,7 +61,7 @@ func loginUser(db *gorm.DB, user *User) (string, error) {
 	claims["user_id"] = selectedUser.ID
 	claims["exp"] = time.Now().Add(time.Hour * 72).Unix()
 
-	t, err := token.SignedString(jwtSecretKey)
+	t, err := token.SignedString([]byte(jwtSecretKey))
 	if err != nil {
 		return "", err
 	}
