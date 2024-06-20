@@ -14,6 +14,93 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+//Book 1-1 Publisher
+//Books M-N Authors
+
+type Book struct {
+	gorm.Model
+	Name        string `json:"name"`
+	Author      string `json:"author"`
+	Description string `json:"description"`
+	PublisherID uint
+	Publisher   Publisher
+	Authors     []Author `gorm:"many2many:author_books;"`
+}
+
+type Publisher struct {
+	gorm.Model
+	Details string
+	Name    string
+}
+
+type Author struct {
+	gorm.Model
+	Name  string
+	Books []Book `gorm:"many2many:author_books;"`
+}
+
+type AuthorBook struct {
+	AuthorID uint
+	Author   Author
+	BookID   uint
+	Book     Book
+}
+
+// func createPublisher(db *gorm.DB, publisher *Publisher) error {
+// 	result := db.Create(publisher)
+// 	if result.Error != nil {
+// 		return result.Error
+// 	}
+// 	return nil
+// }
+
+// func createAuthor(db *gorm.DB, author *Author) error {
+// 	result := db.Create(author)
+// 	if result.Error != nil {
+// 		return result.Error
+// 	}
+// 	return nil
+// }
+
+// // , _ []uint
+// func createBookWithAuthor(db *gorm.DB, book *Book) error {
+// 	// First, create the book
+// 	if err := db.Create(book).Error; err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
+
+func getBookWithPublisher(db *gorm.DB, bookID uint) (*Book, error) {
+	var book Book
+	result := db.Preload("Publisher").First(&book, bookID)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &book, nil
+}
+
+func getBookWithAuthors(db *gorm.DB, bookID uint) (*Book, error) {
+	var book Book
+	result := db.Preload("Authors").First(&book, bookID)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &book, nil
+}
+
+func listBooksOfAuthor(db *gorm.DB, authorID uint) ([]Book, error) {
+	var books []Book
+	result := db.Joins("JOIN author_books on author_books.book_id = books.id").
+		Where("author_books.author_id = ?", authorID).
+		Find(&books)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return books, nil
+}
+
 const (
 	host     = "localhost"  // or the Docker service name if running in another container
 	port     = 5433         // default PostgreSQL port
@@ -22,19 +109,43 @@ const (
 	dbname   = "mydatabase" // as defined in docker-compose.yml
 )
 
+// func authRequired(c *fiber.Ctx) error {
+// 	cookie := c.Cookies("jwt")
+// 	jwtSecretKey := "TestSecret"
+
+// 	// StandardClaims{} is a struct that implements the Claims interface
+// 	//MapClaims{} is a struct that implements the Claims interface
+// 	//RegisteredClaims{} is a struct that implements the Claims interface
+// 	token, err := jwt.ParseWithClaims(cookie, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+// 		return []byte(jwtSecretKey), nil
+// 	})
+
+// 	if err != nil || !token.Valid {
+// 		return c.SendStatus(fiber.StatusUnauthorized)
+// 	}
+
+// 	claim := token.Claims.(*jwt.MapClaims)
+// 	fmt.Println(claim["name"].(string))
+
+//		return c.Next()
+//	}
 func authRequired(c *fiber.Ctx) error {
 	cookie := c.Cookies("jwt")
 	jwtSecretKey := "TestSecret"
 
-	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecretKey, nil
+	// StandardClaims{} is a struct that implements the Claims interface
+	//MapClaims{} is a struct that implements the Claims interface
+	//RegisteredClaims{} is a struct that implements the Claims interface
+	token, err := jwt.ParseWithClaims(cookie, &jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecretKey), nil
 	})
 
-	if err != nil {
+	if err != nil || !token.Valid {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
-	fmt.Println(token)
+	// claim := token.Claims.(*jwt.MapClaims)
+	// fmt.Println((*claim)["name"].(string))
 
 	return c.Next()
 }
@@ -67,8 +178,95 @@ func main() {
 
 	// db.Migrator().DropColumn(&Book{}, "name")
 
+	// db.Migrator().DropColumn(Booker[])
+	// db.Migrator().DropTable(&Booker{})
+	// db.Migrator().DropTable("users")
+
 	// Migrate the schema
-	db.AutoMigrate(&Book{}, &User{})
+	db.AutoMigrate(&Booker{}, &User{})
+	db.AutoMigrate(&Book{}, &Publisher{}, &Author{}, &AuthorBook{})
+
+	// ขาสร้าง
+	// publisher := Publisher{
+	// 	Details: "Bomb",
+	// 	Name:    "B",
+	// }
+	// _ = createPublisher(db, &publisher)
+
+	// // Example data for a new author
+	// author1 := Author{
+	// 	Name: "B",
+	// }
+	// _ = createAuthor(db, &author1)
+
+	// author2 := Author{
+	// 	Name: "B",
+	// }
+	// _ = createAuthor(db, &author2)
+
+	// // // Example data for a new book with an author
+	// book := Book{
+	// 	Name:        "GG",
+	// 	Author:      "FFFFEDXDD",
+	// 	Description: "Book Description",
+	// 	PublisherID: publisher.ID,               // Use the ID of the publisher created above
+	// 	Authors:     []Author{author1, author2}, // Add the created author
+	// }
+	// _ = createBookWithAuthor(db, &book)
+
+	// ขาเรียก
+
+	// Example: Get a book with its publisher
+	// bookWithPublisher, err := getBookWithPublisher(db, 1) // assuming a book with ID 1
+	// // if err != nil {
+	// // 	// Handle error
+	// // }
+
+	// // // Example: Get a book with its authors
+	// bookWithAuthors, err := getBookWithAuthors(db, 1) // assuming a book with ID 1
+	// // if err != nil {
+	// // 	// Handle error
+	// // }
+
+	// // // Example: List books of a specific author
+	// authorBooks, err := listBooksOfAuthor(db, 1) // assuming an author with ID 1
+	// // if err != nil {
+	// // 	// Handle error
+	// // }
+
+	// fmt.Println("----------------------------")
+	// fmt.Println(bookWithPublisher)
+	// fmt.Println("----------------------------")
+	// fmt.Println(bookWithAuthors)
+	// fmt.Println("----------------------------")
+	// fmt.Println(authorBooks)
+
+	// Example: Get a book with its publisher
+	bookWithPublisher, err := getBookWithPublisher(db, 1) // assuming a book with ID 1
+	if err != nil {
+		log.Printf("Error getting book with publisher: %v", err)
+	} else {
+		fmt.Println("----------------------------")
+		fmt.Println(bookWithPublisher)
+	}
+
+	// Example: Get a book with its authors
+	bookWithAuthors, err := getBookWithAuthors(db, 1) // assuming a book with ID 1
+	if err != nil {
+		log.Printf("Error getting book with authors: %v", err)
+	} else {
+		fmt.Println("----------------------------")
+		fmt.Println(bookWithAuthors)
+	}
+
+	// Example: List books of a specific author
+	authorBooks, err := listBooksOfAuthor(db, 1) // assuming an author with ID 1
+	if err != nil {
+		log.Printf("Error listing books of author: %v", err)
+	} else {
+		fmt.Println("----------------------------")
+		fmt.Println(authorBooks)
+	}
 
 	//set up fiber app
 	app := fiber.New()
@@ -89,7 +287,7 @@ func main() {
 	})
 
 	app.Post("/book", func(c *fiber.Ctx) error {
-		newBook := new(Book)
+		newBook := new(Booker)
 
 		if err := c.BodyParser(newBook); err != nil {
 			return c.SendStatus(fiber.StatusBadRequest)
@@ -113,7 +311,7 @@ func main() {
 			return c.SendStatus(fiber.StatusBadRequest)
 		}
 
-		book := new(Book)
+		book := new(Booker)
 
 		if err := c.BodyParser(book); err != nil {
 			return c.SendStatus(fiber.StatusBadRequest)

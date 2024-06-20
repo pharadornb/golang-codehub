@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type Book struct {
+type Booker struct {
 	//camel case to snell case pass gorm
 	gorm.Model
 	// ID          int64
@@ -17,7 +17,7 @@ type Book struct {
 	Price       uint   `json:"price"`
 }
 
-func createBook(db *gorm.DB, book *Book) error {
+func createBook(db *gorm.DB, book *Booker) error {
 	result := db.Create(book)
 
 	if result.Error != nil {
@@ -28,8 +28,8 @@ func createBook(db *gorm.DB, book *Book) error {
 	return nil
 }
 
-func getBook(db *gorm.DB, id uint) *Book {
-	var book Book
+func getBook(db *gorm.DB, id uint) *Booker {
+	var book Booker
 	result := db.First(&book, id)
 
 	if result.Error != nil {
@@ -39,7 +39,7 @@ func getBook(db *gorm.DB, id uint) *Book {
 	return &book
 }
 
-func updateBook(db *gorm.DB, book *Book) error {
+func updateBook(db *gorm.DB, book *Booker) error {
 	// result := db.Model(&book).Where("id = ?", id).Updates(book)
 	result := db.Model(&book).Updates(book)
 
@@ -74,8 +74,8 @@ func deleteBook(db *gorm.DB, id int) error {
 // 	fmt.Println("Book found successfully!")
 // }
 
-func seachBookAll(db *gorm.DB, bookName string) []Book {
-	var books []Book
+func seachBookAll(db *gorm.DB, bookName string) []Booker {
+	var books []Booker
 	result := db.Where("name = ?", bookName).Order("price desc").Find(&books)
 
 	if result.Error != nil {
@@ -86,8 +86,8 @@ func seachBookAll(db *gorm.DB, bookName string) []Book {
 	return books
 }
 
-func getBooks(db *gorm.DB) []Book {
-	var books []Book
+func getBooks(db *gorm.DB) []Booker {
+	var books []Booker
 	result := db.Find(&books)
 
 	if result.Error != nil {
